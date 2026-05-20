@@ -20,14 +20,6 @@ import (
 	"strings"
 )
 
-// XML namespace URIs used in OData EDMX documents (for reference).
-const (
-	nsEdmx = "http://schemas.microsoft.com/ado/2007/06/edmx"
-	nsEdm  = "http://schemas.microsoft.com/ado/2008/09/edm"
-	nsAtom = "http://www.w3.org/2005/Atom"
-	nsSAP  = "http://www.sap.com/Protocols/SAPData"
-)
-
 // EntityInfo holds properties and label for one EntitySet.
 type EntityInfo struct {
 	Label      string

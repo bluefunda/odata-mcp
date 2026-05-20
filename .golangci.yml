@@ -1,0 +1,6 @@
+issues:
+  exclude-rules:
+    # defer X.Close() errors are intentionally not checked — failure at close
+    # time is non-actionable and suppressing it keeps call sites readable.
+    - linters: [errcheck]
+      source: "defer "
