@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/bluefunda/odata-mcp/compare/v0.1.2...v0.1.3) (2026-05-20)
+
+
+### Bug Fixes
+
+* **license:** replace non-canonical Apache 2.0 with official text ([aff29fb](https://github.com/bluefunda/odata-mcp/commit/aff29fb1ff51d572072c7a54b0be85b030069c18))
+
 ## [0.1.2](https://github.com/bluefunda/odata-mcp/compare/v0.1.1...v0.1.2) (2026-05-20)
 
 
