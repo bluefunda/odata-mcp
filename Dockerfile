@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 
 # ---- Build stage ------------------------------------------------------------
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /src
 
