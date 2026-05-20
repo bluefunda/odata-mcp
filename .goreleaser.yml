@@ -1,0 +1,240 @@
+# GoReleaser v2 configuration for odata-mcp
+version: 2
+
+project_name: odata-mcp
+
+env:
+  - GO111MODULE=on
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod download
+
+builds:
+  - id: odata-mcp
+    main: .
+    binary: odata-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+      - freebsd
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: windows
+        goarch: arm64
+      - goos: windows
+        goarch: arm
+      - goos: freebsd
+        goarch: arm64
+      - goos: freebsd
+        goarch: arm
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.BuildTime={{.Date}}
+      - -X main.GitCommit={{.Commit}}
+
+archives:
+  - id: default
+    files:
+      - README.md
+      - LICENSE
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^build:"
+      - "^chore:"
+      - "typo"
+      - "minor"
+  groups:
+    - title: Features
+      regexp: "^.*feat[(\\w)]*:+.*$"
+      order: 0
+    - title: "Bug fixes"
+      regexp: "^.*fix[(\\w)]*:+.*$"
+      order: 1
+    - title: "MCP Tools"
+      regexp: "^.*tool[(\\w)]*:+.*$"
+      order: 2
+    - title: "MCP Resources"
+      regexp: "^.*resource[(\\w)]*:+.*$"
+      order: 3
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: bluefunda
+    name: odata-mcp
+  draft: false
+  prerelease: auto
+  mode: replace
+  replace_existing_draft: true
+  header: |
+    ## What's Changed
+
+    Welcome to this new release of **odata-mcp** — Intelligent OData MCP Server! 🎉
+
+    ### Key Features
+    - 🤖 **MCP Server**: Full Model Context Protocol implementation
+    - 🔧 **OData Tool**: Intelligent natural-language query over any OData v2/v4 service
+    - 📚 **MCP Resources**: EDMX metadata and service-info endpoints
+    - 🗂️ **Flexible metadata store**: local file, S3-compatible storage, or NATS JetStream KV
+    - 🔐 **Vault integration**: NATS credentials from HashiCorp Vault
+    - 🌐 **SAP OData**: Tested against SAP BTP and on-prem EDMX services
+
+    ### Supported Architectures
+    - **Linux**: x86_64, ARM64, ARMv6, ARMv7
+    - **macOS**: x86_64 (Intel), ARM64 (Apple Silicon)
+    - **Windows**: x86_64
+    - **FreeBSD**: x86_64
+
+  footer: |
+    ## Docker Images
+
+    ```bash
+    docker pull bluefunda/odata-mcp:{{ .Tag }}
+    docker pull bluefunda/odata-mcp:latest
+    ```
+
+    **Full Changelog**: https://github.com/bluefunda/odata-mcp/compare/{{ .PreviousTag }}...{{ .Tag }}
+
+# Linux packages
+nfpms:
+  - id: packages
+    package_name: odata-mcp
+    vendor: BlueFunda, Inc.
+    homepage: https://github.com/bluefunda/odata-mcp
+    maintainer: BlueFunda, Inc. <info@bluefunda.com>
+    description: |-
+      MCP server that connects AI assistants to any OData v2/v4 service.
+      Supports local XML files, S3-compatible storage, and NATS JetStream KV
+      for metadata discovery. Works with Claude Desktop, Cursor, and Windsurf.
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+      - apk
+    dependencies:
+      - ca-certificates
+    bindir: /usr/bin
+    section: utils
+    priority: optional
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/odata-mcp/copyright
+        file_info:
+          mode: 0644
+      - src: ./README.md
+        dst: /usr/share/doc/odata-mcp/README.md
+        file_info:
+          mode: 0644
+    rpm:
+      group: Development/Tools
+      compression: lzma
+    deb:
+      lintian_overrides:
+        - statically-linked-binary
+        - changelog-file-missing-in-native-package
+
+# Docker images
+dockers:
+  - id: amd64
+    image_templates:
+      - "bluefunda/odata-mcp:{{ .Version }}-amd64"
+      - "bluefunda/odata-mcp:latest-amd64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/bluefunda/odata-mcp"
+      - "--label=org.opencontainers.image.description=Intelligent OData MCP server"
+      - "--label=org.opencontainers.image.vendor=BlueFunda, Inc."
+      - "--label=org.opencontainers.image.licenses=Apache-2.0"
+      - "--build-arg=VERSION={{.Version}}"
+      - "--build-arg=BUILD_TIME={{.Date}}"
+      - "--build-arg=GIT_COMMIT={{.FullCommit}}"
+    goarch: amd64
+
+  - id: arm64
+    image_templates:
+      - "bluefunda/odata-mcp:{{ .Version }}-arm64"
+      - "bluefunda/odata-mcp:latest-arm64"
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source=https://github.com/bluefunda/odata-mcp"
+      - "--label=org.opencontainers.image.description=Intelligent OData MCP server - ARM64"
+      - "--label=org.opencontainers.image.vendor=BlueFunda, Inc."
+      - "--label=org.opencontainers.image.licenses=Apache-2.0"
+      - "--build-arg=VERSION={{.Version}}"
+      - "--build-arg=BUILD_TIME={{.Date}}"
+      - "--build-arg=GIT_COMMIT={{.FullCommit}}"
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "bluefunda/odata-mcp:{{ .Version }}"
+    image_templates:
+      - "bluefunda/odata-mcp:{{ .Version }}-amd64"
+      - "bluefunda/odata-mcp:{{ .Version }}-arm64"
+  - name_template: "bluefunda/odata-mcp:latest"
+    image_templates:
+      - "bluefunda/odata-mcp:latest-amd64"
+      - "bluefunda/odata-mcp:latest-arm64"
+
+universal_binaries:
+  - id: darwin-universal
+    name_template: "odata-mcp"
+    replace: false
+    ids:
+      - odata-mcp
+
+metadata:
+  mod_timestamp: "{{ .CommitTimestamp }}"

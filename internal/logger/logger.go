@@ -1,0 +1,92 @@
+// Copyright 2025 bluefunda
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package logger
+
+import (
+	"os"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+var (
+	// L is the global logger instance
+	L *zap.Logger
+	// S is the global sugared logger for convenience
+	S *zap.SugaredLogger
+)
+
+// Config holds logger configuration
+type Config struct {
+	Level      string // debug, info, warn, error
+	Format     string // json, console
+	ServerName string // MCP server name for log context
+	Version    string // Server version
+}
+
+// Init initializes the global logger with the given configuration
+func Init(cfg Config) error {
+	level, err := zapcore.ParseLevel(cfg.Level)
+	if err != nil {
+		level = zapcore.InfoLevel
+	}
+
+	var encoderConfig zapcore.EncoderConfig
+	var encoder zapcore.Encoder
+
+	if cfg.Format == "console" {
+		encoderConfig = zap.NewDevelopmentEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoder = zapcore.NewConsoleEncoder(encoderConfig)
+	} else {
+		encoderConfig = zap.NewProductionEncoderConfig()
+		encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		encoder = zapcore.NewJSONEncoder(encoderConfig)
+	}
+
+	core := zapcore.NewCore(
+		encoder,
+		zapcore.AddSync(os.Stderr),
+		level,
+	)
+
+	L = zap.New(core).With(
+		zap.String("server", cfg.ServerName),
+		zap.String("version", cfg.Version),
+	)
+	S = L.Sugar()
+
+	return nil
+}
+
+// Sync flushes any buffered log entries
+func Sync() {
+	if L != nil {
+		_ = L.Sync()
+	}
+}
+
+// WithRequestID returns a logger with request context
+func WithRequestID(requestID string) *zap.Logger {
+	return L.With(zap.String("request_id", requestID))
+}
+
+// WithTool returns a logger with tool context
+func WithTool(requestID, toolName string) *zap.Logger {
+	return L.With(
+		zap.String("request_id", requestID),
+		zap.String("tool", toolName),
+	)
+}

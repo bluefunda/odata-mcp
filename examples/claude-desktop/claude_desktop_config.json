@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "odata": {
+      "command": "/usr/local/bin/odata-mcp",
+      "env": {
+        "ODATA_METADATA_PATH": "/path/to/your/metadata.xml",
+        "ODATA_USERNAME": "your-username",
+        "ODATA_PASSWORD": "your-password",
+        "ODATA_AUTH_TYPE": "basic",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
