@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/bluefunda/odata-mcp/compare/v0.1.1...v0.1.2) (2026-05-20)
+
+
+### Bug Fixes
+
+* **docker:** bump builder image to golang:1.25-alpine to match go.mod ([97603b8](https://github.com/bluefunda/odata-mcp/commit/97603b802f9f16151f16917c5e404464f4010f13))
+
 ## [0.1.1](https://github.com/bluefunda/odata-mcp/compare/v0.1.0...v0.1.1) (2026-05-20)
 
 
