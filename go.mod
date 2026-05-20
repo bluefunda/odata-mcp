@@ -3,8 +3,8 @@ module github.com/bluefunda/odata-mcp
 go 1.25.6
 
 require (
-	github.com/bluefunda/go-vault v0.0.0-20260211051016-89363a6dfc38
 	github.com/google/uuid v1.6.0
+	github.com/hashicorp/vault/api v1.22.0
 	github.com/minio/minio-go/v7 v7.0.80
 	github.com/modelcontextprotocol/go-sdk v1.1.0
 	github.com/nats-io/nats.go v1.42.0
@@ -27,7 +27,6 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
-	github.com/hashicorp/vault/api v1.22.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
