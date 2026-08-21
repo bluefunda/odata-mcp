@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/bluefunda/odata-mcp/compare/v0.1.3...v0.2.0) (2026-08-21)
+
+
+### Features
+
+* **tools:** add discovery, service-scoped query, and chart tools ([#8](https://github.com/bluefunda/odata-mcp/issues/8)) ([a719b80](https://github.com/bluefunda/odata-mcp/commit/a719b80a1b68637355686620fc9677a09fe8511c))
+
 ## [0.1.3](https://github.com/bluefunda/odata-mcp/compare/v0.1.2...v0.1.3) (2026-05-20)
 
 
