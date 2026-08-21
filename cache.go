@@ -34,8 +34,8 @@ type CacheStore interface {
 
 // Well-known config keys stored in the cache bucket.
 const (
-	cacheKeyS3Config    = "S3Config"     // S3 / object-storage connection params
-	cacheKeyODataConfig = "ODataConfig"  // OData service credentials
+	cacheKeyS3Config    = "S3Config"    // S3 / object-storage connection params
+	cacheKeyODataConfig = "ODataConfig" // OData service credentials
 )
 
 // configString extracts a string value from a decoded config map.
