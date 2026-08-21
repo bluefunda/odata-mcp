@@ -37,8 +37,14 @@ type Handlers struct {
 	// services maps service base URL → ServiceInfo
 	services map[string]*ServiceInfo
 
-	// entityIndex maps EntitySet name → base URL (fast lookup for entity matching)
+	// entityIndex maps EntitySet name → base URL (fast lookup for entity matching).
+	// When an EntitySet name is defined by more than one service, this holds
+	// whichever base URL was processed last — see entityServices for the full set.
 	entityIndex map[string]string
+
+	// entityServices maps EntitySet name → all base URLs that define it.
+	// len() > 1 means the name is ambiguous across services.
+	entityServices map[string][]string
 
 	// store is the MetadataStore chosen by Initialize().
 	store MetadataStore
@@ -58,9 +64,10 @@ type Handlers struct {
 // NewHandlers creates a Handlers with empty state; call Initialize() to populate.
 func NewHandlers(cfg *Config) *Handlers {
 	return &Handlers{
-		cfg:         cfg,
-		services:    make(map[string]*ServiceInfo),
-		entityIndex: make(map[string]string),
+		cfg:            cfg,
+		services:       make(map[string]*ServiceInfo),
+		entityIndex:    make(map[string]string),
+		entityServices: make(map[string][]string),
 	}
 }
 
@@ -137,6 +144,7 @@ func (h *Handlers) Initialize(ctx context.Context) error {
 		h.services[baseURL] = svc
 		for setName := range svc.Entities {
 			h.entityIndex[setName] = baseURL
+			h.entityServices[setName] = append(h.entityServices[setName], baseURL)
 		}
 	}
 
@@ -254,4 +262,40 @@ func (h *Handlers) ServiceForEntity(entityName string) *ServiceInfo {
 		return nil
 	}
 	return h.services[baseURL]
+}
+
+// ServicesForEntity returns every base URL that defines the given EntitySet
+// name. A length greater than 1 means the name is ambiguous across services.
+func (h *Handlers) ServicesForEntity(entityName string) []string {
+	return h.entityServices[entityName]
+}
+
+// MetadataFileIDs returns the store IDs of all metadata files processed at startup.
+func (h *Handlers) MetadataFileIDs() []string {
+	return h.allMetadataIDs
+}
+
+// ServiceSummary describes one discovered OData service and its entities.
+// Shared by the metadata-info.json resource and the list-available-services tool.
+type ServiceSummary struct {
+	BaseURL     string   `json:"base_url"`
+	Entities    []string `json:"entities"`
+	EntityCount int      `json:"entity_count"`
+}
+
+// ServiceSummaries returns a ServiceSummary for every discovered service.
+func (h *Handlers) ServiceSummaries() []ServiceSummary {
+	summaries := make([]ServiceSummary, 0, len(h.services))
+	for baseURL, svc := range h.services {
+		names := make([]string, 0, len(svc.Entities))
+		for name := range svc.Entities {
+			names = append(names, name)
+		}
+		summaries = append(summaries, ServiceSummary{
+			BaseURL:     baseURL,
+			Entities:    names,
+			EntityCount: len(names),
+		})
+	}
+	return summaries
 }
