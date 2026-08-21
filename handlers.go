@@ -113,6 +113,20 @@ func (h *Handlers) Initialize(ctx context.Context) error {
 		}
 
 		baseURL := parsed.BaseURL
+		if baseURL == "" {
+			// SAP EDMX always carries atom:link[@rel="self"]; plain OData
+			// services (e.g. services.odata.org) often don't. Fall back to
+			// the configured base URL, or skip the file if none is set.
+			if h.cfg.ODataServiceBaseURL != "" {
+				baseURL = h.cfg.ODataServiceBaseURL
+				logger.L.Info("Metadata file has no atom:link[@rel=\"self\"]; using ODATA_SERVICE_BASE_URL",
+					zap.String("id", id), zap.String("base_url", baseURL))
+			} else {
+				logger.L.Warn("Metadata file has no atom:link[@rel=\"self\"] and ODATA_SERVICE_BASE_URL is not set; skipping",
+					zap.String("id", id))
+				continue
+			}
+		}
 		if _, exists := serviceGroups[baseURL]; !exists {
 			serviceGroups[baseURL] = &ServiceInfo{
 				BaseURL:  baseURL,

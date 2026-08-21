@@ -47,6 +47,14 @@
 //	ODATA_METADATA_PATH=/path/to/metadata.xml odata-mcp
 //	ODATA_METADATA_PATH=/path/to/xml-dir/     odata-mcp
 //
+// SAP EDMX embeds atom:link[@rel="self"] to identify the service base URL;
+// plain OData v2/v4 services (e.g. services.odata.org) often don't. Set
+// ODATA_SERVICE_BASE_URL as a fallback for those — without it, such a file is
+// skipped with a warning rather than failing the whole server:
+//
+//	ODATA_METADATA_PATH=/path/to/northwind.xml \
+//	ODATA_SERVICE_BASE_URL=https://services.odata.org/V2/Northwind/Northwind.svc odata-mcp
+//
 // S3-compatible object storage (AWS S3, MinIO, R2, GCS interop):
 //
 //	S3_ENDPOINT=localhost:9000 S3_BUCKET=my-bucket \

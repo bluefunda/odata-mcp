@@ -140,3 +140,59 @@ func TestHandleListMetadataFiles(t *testing.T) {
 		t.Fatalf("ListMetadataFiles = %v, want 2 files", out.Files)
 	}
 }
+
+// edmxWithoutSelfLink mimics a plain OData v2 service (e.g. Northwind on
+// services.odata.org) that omits SAP's atom:link[@rel="self"] entirely.
+const edmxWithoutSelfLink = `<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="1.0" xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="NorthwindModel" xmlns="http://schemas.microsoft.com/ado/2008/09/edm">
+      <EntityType Name="Category">
+        <Key><PropertyRef Name="CategoryID"/></Key>
+        <Property Name="CategoryID" Type="Edm.Int32"/>
+        <Property Name="CategoryName" Type="Edm.String"/>
+      </EntityType>
+      <EntityContainer Name="NorthwindEntities">
+        <EntitySet Name="Categories" EntityType="NorthwindModel.Category"/>
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>`
+
+func TestInitialize_SkipsFileWithNoSelfLinkAndNoFallback(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "northwind.xml"), []byte(edmxWithoutSelfLink), 0o600); err != nil {
+		t.Fatalf("writing northwind.xml: %v", err)
+	}
+
+	cfg := &Config{ODataMetadataPath: dir, ODataAuthType: "basic"}
+	h := NewHandlers(cfg)
+	if err := h.Initialize(context.Background()); err == nil {
+		t.Fatal("expected Initialize error when no valid metadata could be parsed, got nil")
+	}
+	if len(h.AllEntityNames()) != 0 {
+		t.Errorf("expected no entities without a base URL fallback, got %v", h.AllEntityNames())
+	}
+}
+
+func TestInitialize_AppliesServiceBaseURLFallback(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "northwind.xml"), []byte(edmxWithoutSelfLink), 0o600); err != nil {
+		t.Fatalf("writing northwind.xml: %v", err)
+	}
+
+	const fallback = "https://services.odata.org/V2/Northwind/Northwind.svc"
+	cfg := &Config{ODataMetadataPath: dir, ODataAuthType: "basic", ODataServiceBaseURL: fallback}
+	h := NewHandlers(cfg)
+	if err := h.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize error: %v", err)
+	}
+
+	if urls := h.ServicesForEntity("Categories"); len(urls) != 1 || urls[0] != fallback {
+		t.Errorf("ServicesForEntity(Categories) = %v, want [%q]", urls, fallback)
+	}
+	svc := h.ServiceForEntity("Categories")
+	if svc == nil || svc.BaseURL != fallback {
+		t.Errorf("ServiceForEntity(Categories) = %+v, want BaseURL %q", svc, fallback)
+	}
+}

@@ -91,6 +91,16 @@ S3_SECRET_KEY=minioadmin \
 odata-mcp
 ```
 
+### Plain OData services without a self-link (e.g. services.odata.org)
+
+SAP EDMX always embeds `atom:link[@rel="self"]` to identify the service's base URL; many standard OData v2/v4 services don't. If a metadata file has no self-link, set `ODATA_SERVICE_BASE_URL` explicitly — without it, that file is skipped with a warning at startup instead of failing the whole server:
+
+```bash
+ODATA_METADATA_PATH=/path/to/northwind-metadata.xml \
+ODATA_SERVICE_BASE_URL=https://services.odata.org/V2/Northwind/Northwind.svc \
+odata-mcp
+```
+
 ### NATS JetStream KV (production)
 
 Reads S3 and OData credentials from a NATS JetStream KV bucket (`ODataMCPConfigBucket` by default), then loads EDMX from S3.
@@ -116,6 +126,7 @@ Set via `ODATA_MODE` env var:
 |----------|----------|---------|-------------|
 | **Metadata store** (one required) | | | |
 | `ODATA_METADATA_PATH` | * | — | Path to a local `.xml` file or directory of `.xml` files |
+| `ODATA_SERVICE_BASE_URL` | No | — | Fallback base URL for metadata that has no `atom:link[@rel="self"]` (SAP EDMX always has one; plain OData services like `services.odata.org` often don't). Only meaningful for a single-service setup. |
 | `S3_ENDPOINT` | * | — | S3-compatible endpoint (e.g. `localhost:9000`, `s3.amazonaws.com`) |
 | `S3_BUCKET` | if S3 | `ODataMCPConfigBucket` | Bucket containing EDMX files under the `metaData/` prefix |
 | `S3_ACCESS_KEY` | if S3 | — | S3 access key |

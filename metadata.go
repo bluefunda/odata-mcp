@@ -40,7 +40,12 @@ type ServiceMetadata struct {
 //  2. Walk EntityContainer nodes to map EntitySet names to those types.
 //
 // atom:link[@rel="self"] is searched inside Schema children because SAP EDMX
-// places that element inside the Schema, not at the Edmx root.
+// places that element inside the Schema, not at the Edmx root. This is a SAP
+// convention, not a universal OData one — plain OData v2/v4 services (e.g.
+// services.odata.org) typically omit it. ParseMetadata does not treat a
+// missing self-link as an error; ServiceMetadata.BaseURL is simply left
+// empty, and it's up to the caller (Handlers.Initialize) to apply a
+// configured fallback or skip the file.
 func ParseMetadata(xmlContent string) (*ServiceMetadata, error) {
 	dec := xml.NewDecoder(strings.NewReader(xmlContent))
 
@@ -144,9 +149,6 @@ func parseByTokenStream(dec *xml.Decoder) (*ServiceMetadata, error) {
 		}
 	}
 
-	if meta.BaseURL == "" {
-		return nil, fmt.Errorf("atom:link[@rel=\"self\"] not found in EDMX — cannot determine base URL")
-	}
 	if len(meta.Entities) == 0 {
 		return nil, fmt.Errorf("no EntitySets found in EDMX")
 	}
