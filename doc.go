@@ -14,8 +14,24 @@
 
 // odata-mcp is a Model Context Protocol (MCP) server that connects AI
 // assistants to any OData v2/v4 service. It parses EDMX metadata to discover
-// available EntitySets and exposes a single natural-language tool that selects
-// the right entity, queries the service, and returns real data.
+// available EntitySets and exposes natural-language tools that select the
+// right entity, query the service, and return real data.
+//
+// # Tools
+//
+//   - query-odata-service: natural-language query across all discovered
+//     EntitySets. Returns an error naming the candidate services (and pointing
+//     at query-service) if the same EntitySet name is defined by more than one
+//     service.
+//   - query-service: natural-language query scoped to one explicitly chosen
+//     service, for disambiguating EntitySet names that collide across services.
+//   - list-available-services: lists discovered services with their base URLs
+//     and EntitySets.
+//   - list-metadata-files: lists the metadata source identifiers processed at
+//     startup.
+//   - generate-chart: suggests a structured chart configuration (chart type,
+//     axes, grouping, insight) for a set of data records; does not render an
+//     image itself.
 //
 // Supported AI clients: Claude Desktop, Claude Code, Cursor, Windsurf, and
 // any MCP-compatible host.
@@ -30,6 +46,14 @@
 //
 //	ODATA_METADATA_PATH=/path/to/metadata.xml odata-mcp
 //	ODATA_METADATA_PATH=/path/to/xml-dir/     odata-mcp
+//
+// SAP EDMX embeds atom:link[@rel="self"] to identify the service base URL;
+// plain OData v2/v4 services (e.g. services.odata.org) often don't. Set
+// ODATA_SERVICE_BASE_URL as a fallback for those — without it, such a file is
+// skipped with a warning rather than failing the whole server:
+//
+//	ODATA_METADATA_PATH=/path/to/northwind.xml \
+//	ODATA_SERVICE_BASE_URL=https://services.odata.org/V2/Northwind/Northwind.svc odata-mcp
 //
 // S3-compatible object storage (AWS S3, MinIO, R2, GCS interop):
 //

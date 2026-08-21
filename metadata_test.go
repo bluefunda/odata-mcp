@@ -96,6 +96,10 @@ func TestParseMetadata_Label(t *testing.T) {
 	}
 }
 
+// TestParseMetadata_MissingLink covers plain OData v2/v4 metadata (e.g.
+// services.odata.org) that has no atom:link[@rel="self"] — a SAP-only
+// convention. ParseMetadata itself must not fail; resolving or skipping the
+// missing base URL is Handlers.Initialize's job (see handlers_test.go).
 func TestParseMetadata_MissingLink(t *testing.T) {
 	noLink := `<?xml version="1.0"?>
 <edmx:Edmx xmlns:edmx="http://schemas.microsoft.com/ado/2007/06/edmx">
@@ -106,9 +110,15 @@ func TestParseMetadata_MissingLink(t *testing.T) {
     </Schema>
   </edmx:DataServices>
 </edmx:Edmx>`
-	_, err := ParseMetadata(noLink)
-	if err == nil {
-		t.Error("expected error for missing atom:link, got nil")
+	meta, err := ParseMetadata(noLink)
+	if err != nil {
+		t.Fatalf("ParseMetadata error: %v", err)
+	}
+	if meta.BaseURL != "" {
+		t.Errorf("BaseURL = %q, want empty", meta.BaseURL)
+	}
+	if _, ok := meta.Entities["Foos"]; !ok {
+		t.Error("expected Foos EntitySet to still be parsed despite missing base URL")
 	}
 }
 

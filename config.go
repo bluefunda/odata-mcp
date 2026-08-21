@@ -62,6 +62,13 @@ type Config struct {
 	// Intended for Claude Desktop / local development.
 	ODataMetadataPath string
 
+	// ODataServiceBaseURL is a fallback base URL applied to metadata files that
+	// have no atom:link[@rel="self"] element — SAP EDMX always includes this
+	// link, but plain OData v2/v4 services (e.g. services.odata.org) often
+	// don't. Only meaningful for a single-service setup: all such files share
+	// this one fallback. Leave unset for SAP-style metadata.
+	ODataServiceBaseURL string
+
 	// OData service credentials — env-var fallback for all store paths.
 	// When NATS is used these are overridden by the ODataConfig KV key.
 	ODataUsername string
@@ -87,16 +94,17 @@ func LoadConfig() *Config {
 		NATSCreds:          getEnv("NATS_CREDS", ""),
 		NATSConnectTimeout: 120,
 		NATSKVBucket:       defaultNATSKVBucket,
-		S3Endpoint:  os.Getenv("S3_ENDPOINT"),
-		S3AccessKey: os.Getenv("S3_ACCESS_KEY"),
-		S3SecretKey: os.Getenv("S3_SECRET_KEY"),
-		S3Bucket:    getEnv("S3_BUCKET", defaultNATSKVBucket),
-		S3Secure:    os.Getenv("S3_SECURE") == "true",
+		S3Endpoint:         os.Getenv("S3_ENDPOINT"),
+		S3AccessKey:        os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:        os.Getenv("S3_SECRET_KEY"),
+		S3Bucket:           getEnv("S3_BUCKET", defaultNATSKVBucket),
+		S3Secure:           os.Getenv("S3_SECURE") == "true",
 
-		ODataMetadataPath: os.Getenv("ODATA_METADATA_PATH"),
-		ODataUsername:     os.Getenv("ODATA_USERNAME"),
-		ODataPassword:     os.Getenv("ODATA_PASSWORD"),
-		ODataAuthType:     getEnv("ODATA_AUTH_TYPE", "basic"),
+		ODataMetadataPath:   os.Getenv("ODATA_METADATA_PATH"),
+		ODataServiceBaseURL: os.Getenv("ODATA_SERVICE_BASE_URL"),
+		ODataUsername:       os.Getenv("ODATA_USERNAME"),
+		ODataPassword:       os.Getenv("ODATA_PASSWORD"),
+		ODataAuthType:       getEnv("ODATA_AUTH_TYPE", "basic"),
 
 		AnthropicAPIKey:  os.Getenv("ANTHROPIC_API_KEY"),
 		AnthropicBaseURL: getEnv("ANTHROPIC_BASE_URL", defaultAnthropicBase),

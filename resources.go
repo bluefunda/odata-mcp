@@ -70,25 +70,10 @@ func (h *Handlers) HandleMetadataInfo(
 		}), nil
 	}
 
-	type serviceSummary struct {
-		BaseURL     string   `json:"base_url"`
-		Entities    []string `json:"entities"`
-		EntityCount int      `json:"entity_count"`
-	}
-
-	var services []serviceSummary
+	services := h.ServiceSummaries()
 	var allEntities []string
-	for baseURL, svc := range h.services {
-		names := make([]string, 0, len(svc.Entities))
-		for name := range svc.Entities {
-			names = append(names, name)
-			allEntities = append(allEntities, name)
-		}
-		services = append(services, serviceSummary{
-			BaseURL:     baseURL,
-			Entities:    names,
-			EntityCount: len(names),
-		})
+	for _, svc := range services {
+		allEntities = append(allEntities, svc.Entities...)
 	}
 
 	info := map[string]any{

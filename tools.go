@@ -101,6 +101,19 @@ func (h *Handlers) HandleQueryODataService(
 
 	log.Info("Entity selected", zap.String("entity", targetEntity))
 
+	// --- Ambiguity check ------------------------------------------------------
+	// If more than one service defines an EntitySet with this name, refuse to
+	// silently guess which one the caller meant.
+	if candidates := h.ServicesForEntity(targetEntity); len(candidates) > 1 {
+		msg := fmt.Sprintf(
+			"Entity %q is defined by multiple services: %s. "+
+				"Use the query-service tool with one of these base_url values to disambiguate.",
+			targetEntity, strings.Join(candidates, ", "),
+		)
+		log.Warn("Ambiguous entity across services", zap.Strings("services", candidates))
+		return nil, QueryODataOutput{Error: msg}, nil
+	}
+
 	// --- Fetch data ---------------------------------------------------------
 	svc := h.ServiceForEntity(targetEntity)
 	if svc == nil {

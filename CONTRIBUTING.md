@@ -27,6 +27,22 @@ Point the server at a local metadata file and run in console mode:
 LOG_FORMAT=console ODATA_METADATA_PATH=/path/to/metadata.xml ./bin/odata-mcp
 ```
 
+### Testing tool calls with MCP Inspector
+
+The official [MCP Inspector](https://github.com/modelcontextprotocol/inspector) CLI drives the server over the real stdio JSON-RPC protocol — more representative than testing internal functions directly. Requires Node.js.
+
+```bash
+npx @modelcontextprotocol/inspector --cli ./bin/odata-mcp \
+  -e ODATA_METADATA_PATH=/path/to/metadata.xml \
+  --method tools/list
+
+npx @modelcontextprotocol/inspector --cli ./bin/odata-mcp \
+  -e ODATA_METADATA_PATH=/path/to/metadata.xml \
+  --method tools/call --tool-name query-odata-service --tool-arg query="list all countries"
+```
+
+The command to run and its args (`./bin/odata-mcp`) must come immediately after `--cli`, before any `-e`/`--method`/`--tool-arg` flags. Env vars set with `-e` are passed to the spawned server process, not inherited from your shell.
+
 ## Code style
 
 - Standard Go conventions (`gofmt`, `goimports`)

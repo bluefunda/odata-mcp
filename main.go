@@ -79,6 +79,8 @@ func main() {
 	cancel()
 
 	registerTools(server, handlers)
+	registerDiscoveryTools(server, handlers)
+	registerChartTool(server, handlers)
 	registerResources(server, handlers)
 
 	ctx := context.Background()
