@@ -145,19 +145,27 @@ Set via `ODATA_MODE` env var:
 
 ## MCP capabilities
 
-### Tool
+### Tools
 
 | Tool | Description |
 |------|-------------|
 | `query-odata-service` | Natural-language query over any discovered OData EntitySet. Returns real records from the service. |
+| `query-service` | Natural-language query scoped to one explicitly chosen service (`base_url`). Use this to disambiguate when an EntitySet name is defined by more than one service. |
+| `list-available-services` | Lists discovered services with their base URLs and EntitySets. |
+| `list-metadata-files` | Lists the metadata source identifiers processed at startup. |
+| `generate-chart` | Suggests a structured chart configuration (`chart_type`, `x_field`, `y_field`, `group_by`, `insight`) for a set of data records — e.g. what `query-odata-service` just returned. Returns a spec for the client to render, not an image. |
 
-The tool description is built dynamically at startup and includes the full list of available EntitySets, so the AI assistant can route queries without additional context.
+The `query-odata-service` description is built dynamically at startup and includes the full list of available EntitySets, so the AI assistant can route queries without additional context.
 
 **Example queries:**
 - "list all countries"
 - "show me open purchase orders"
 - "get currencies for Germany"
 - "what business partners are available?"
+
+### Disambiguating EntitySet names across services
+
+If more than one loaded service defines an EntitySet with the same name, `query-odata-service` returns an error naming the candidate services instead of silently guessing one. Call `list-available-services` to see the base URLs, then use `query-service` with the correct `base_url` to run the query against that specific service.
 
 ### Resources
 
@@ -190,6 +198,8 @@ main.go            # entry point, transport routing (stdio / SSE)
 config.go          # Config struct, environment variable loading, Vault overrides
 handlers.go        # Handlers struct, Initialize(), store selection
 tools.go           # query-odata-service MCP tool
+tools_discovery.go # list-metadata-files, list-available-services, query-service tools
+chart.go           # generate-chart MCP tool (Anthropic-driven chart spec)
 resources.go       # MCP resources (metadata.xml, metadata-info.json)
 metadata.go        # EDMX XML parser (token-stream, SAP namespace-aware)
 odataclient.go     # HTTP OData client, filter builder, response normaliser

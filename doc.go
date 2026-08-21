@@ -14,8 +14,24 @@
 
 // odata-mcp is a Model Context Protocol (MCP) server that connects AI
 // assistants to any OData v2/v4 service. It parses EDMX metadata to discover
-// available EntitySets and exposes a single natural-language tool that selects
-// the right entity, queries the service, and returns real data.
+// available EntitySets and exposes natural-language tools that select the
+// right entity, query the service, and return real data.
+//
+// # Tools
+//
+//   - query-odata-service: natural-language query across all discovered
+//     EntitySets. Returns an error naming the candidate services (and pointing
+//     at query-service) if the same EntitySet name is defined by more than one
+//     service.
+//   - query-service: natural-language query scoped to one explicitly chosen
+//     service, for disambiguating EntitySet names that collide across services.
+//   - list-available-services: lists discovered services with their base URLs
+//     and EntitySets.
+//   - list-metadata-files: lists the metadata source identifiers processed at
+//     startup.
+//   - generate-chart: suggests a structured chart configuration (chart type,
+//     axes, grouping, insight) for a set of data records; does not render an
+//     image itself.
 //
 // Supported AI clients: Claude Desktop, Claude Code, Cursor, Windsurf, and
 // any MCP-compatible host.
