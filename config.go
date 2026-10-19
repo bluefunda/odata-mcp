@@ -75,6 +75,17 @@ type Config struct {
 	ODataPassword string
 	ODataAuthType string
 
+	// Per-user connections: when CAIBFFInternalURL is set, a session whose
+	// request carries the caller's X-BF-User-Id (from cai-llm-router) queries
+	// that user's own OData system, fetched from cai-bff's
+	// /internal/odata/credentials, instead of the shared one above.
+	CAIBFFInternalURL     string
+	InternalServiceSecret string
+	// AllowPrivateHosts lets a user's connection point at loopback/private
+	// addresses. Off by default: a user-supplied host must not reach this
+	// server's own network (cai-bff, NATS, ...). Local development only.
+	AllowPrivateHosts bool
+
 	// Anthropic API (LLM entity-selection fallback)
 	AnthropicAPIKey  string
 	AnthropicBaseURL string
@@ -105,6 +116,10 @@ func LoadConfig() *Config {
 		ODataUsername:       os.Getenv("ODATA_USERNAME"),
 		ODataPassword:       os.Getenv("ODATA_PASSWORD"),
 		ODataAuthType:       getEnv("ODATA_AUTH_TYPE", "basic"),
+
+		CAIBFFInternalURL:     os.Getenv("CAI_BFF_INTERNAL_URL"),
+		InternalServiceSecret: os.Getenv("INTERNAL_SERVICE_SECRET"),
+		AllowPrivateHosts:     os.Getenv("ODATA_ALLOW_PRIVATE_HOSTS") == "true",
 
 		AnthropicAPIKey:  os.Getenv("ANTHROPIC_API_KEY"),
 		AnthropicBaseURL: getEnv("ANTHROPIC_BASE_URL", defaultAnthropicBase),

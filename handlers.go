@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/bluefunda/odata-mcp/internal/logger"
@@ -56,6 +57,10 @@ type Handlers struct {
 	// allMetadataIDs lists all processed store IDs.
 	allMetadataIDs []string
 
+	// sessionErr, when set, is what every data tool answers with — a
+	// per-user session whose connection is missing or couldn't be loaded.
+	sessionErr error
+
 	// allEntityNames is the cached flat list of EntitySet names built once at the
 	// end of Initialize; AllEntityNames() returns it without allocating.
 	allEntityNames []string
@@ -85,6 +90,25 @@ func (h *Handlers) Initialize(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	return h.load(ctx, store, func(baseURL string) *ODataClient {
+		if odataAuth == "" {
+			odataAuth = "basic"
+		}
+		return newODataClient(baseURL, odataUser, odataPass, odataAuth)
+	})
+}
+
+// serviceBaseURLer is implemented by stores that know each file's service
+// base URL themselves (remoteStore). Their answer wins over the EDMX self
+// link, so a query never goes to a host other than the one the metadata came
+// from.
+type serviceBaseURLer interface {
+	BaseURLFor(id string) string
+}
+
+// load reads every metadata file in store, groups entities by service base
+// URL and builds each service's OData client with newClient.
+func (h *Handlers) load(ctx context.Context, store MetadataStore, newClient func(baseURL string) *ODataClient) error {
 	h.store = store
 
 	xmlFiles, err := store.ListXMLFiles(ctx)
@@ -113,6 +137,9 @@ func (h *Handlers) Initialize(ctx context.Context) error {
 		}
 
 		baseURL := parsed.BaseURL
+		if b, ok := store.(serviceBaseURLer); ok {
+			baseURL = b.BaseURLFor(id)
+		}
 		if baseURL == "" {
 			// SAP EDMX always carries atom:link[@rel="self"]; plain OData
 			// services (e.g. services.odata.org) often don't. Fall back to
@@ -150,11 +177,8 @@ func (h *Handlers) Initialize(ctx context.Context) error {
 		return fmt.Errorf("no valid metadata could be parsed from any XML file")
 	}
 
-	if odataAuth == "" {
-		odataAuth = "basic"
-	}
 	for baseURL, svc := range serviceGroups {
-		svc.Client = newODataClient(baseURL, odataUser, odataPass, odataAuth)
+		svc.Client = newClient(baseURL)
 		h.services[baseURL] = svc
 		for setName := range svc.Entities {
 			h.entityIndex[setName] = baseURL
@@ -181,6 +205,11 @@ func (h *Handlers) Initialize(ctx context.Context) error {
 	)
 	return nil
 }
+
+// errNoMetadataStore is returned by Initialize when no shared metadata store is
+// configured. Fatal unless per-user connections are enabled, where each
+// session brings its own metadata (see serverForSession).
+var errNoMetadataStore = errors.New("no metadata store configured")
 
 // buildStore selects the MetadataStore implementation and resolves OData credentials.
 func (h *Handlers) buildStore(ctx context.Context) (store MetadataStore, user, pass, authType string, err error) {
@@ -255,10 +284,11 @@ func (h *Handlers) buildStore(ctx context.Context) (store MetadataStore, user, p
 
 	default:
 		err = fmt.Errorf(
-			"no metadata store configured — set one of: " +
-				"NATS_URL (cache-backed), " +
-				"S3_ENDPOINT (direct S3-compatible storage), " +
+			"%w — set one of: "+
+				"NATS_URL (cache-backed), "+
+				"S3_ENDPOINT (direct S3-compatible storage), "+
 				"ODATA_METADATA_PATH (local file or directory)",
+			errNoMetadataStore,
 		)
 	}
 	return

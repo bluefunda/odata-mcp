@@ -69,6 +69,9 @@ func (h *Handlers) HandleQueryODataService(
 
 	log.Info("Tool execution started", zap.String("query", input.Query))
 
+	if h.sessionErr != nil {
+		return nil, QueryODataOutput{Error: h.sessionErr.Error()}, nil
+	}
 	if len(h.services) == 0 || len(h.entityIndex) == 0 {
 		msg := "The OData client is not initialized. Please check server logs."
 		log.Warn(msg)
