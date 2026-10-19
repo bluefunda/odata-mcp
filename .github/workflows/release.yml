@@ -19,6 +19,8 @@ jobs:
     uses: bluefunda/release-foundry/.github/workflows/docker-deploy.yml@main
     with:
       tag: ${{ needs.release.outputs.tag_name }}
+      # The binary reports this version (startup log, /health) instead of "dev".
+      build-args: VERSION=${{ needs.release.outputs.tag_name }}
     secrets:
       GH_PAT: ${{ secrets.GH_PAT }}
 

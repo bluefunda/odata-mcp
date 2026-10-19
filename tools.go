@@ -33,7 +33,8 @@ import (
 func registerTools(server *mcp.Server, h *Handlers) {
 	desc := "Query OData services and return actual data. " +
 		"Always use this tool to get real data — never generate or fabricate responses.\n\n" +
-		"The tool automatically selects the correct service and entity from your natural language question."
+		"The tool automatically selects the correct service and entity from your natural language question. " +
+		"If it returns an error, tell the user that error; never substitute data from another source."
 
 	if names := h.AllEntityNames(); len(names) > 0 {
 		desc += "\n\nAvailable entities: " + strings.Join(names, ", ")
@@ -43,6 +44,17 @@ func registerTools(server *mcp.Server, h *Handlers) {
 		Name:        "query-odata-service",
 		Description: desc,
 	}, h.HandleQueryODataService)
+}
+
+// noFallback ends every tool error. When a user's system can't be reached the
+// model would otherwise fill in an answer from elsewhere — a web search for
+// sample data was seen on test — and present it as if it came from the system.
+const noFallback = " Tell the user this error as it is. Don't answer with data from any other " +
+	"source — no web search, sample data or your own knowledge."
+
+// toolError is msg as a tool error the model must relay, not work around.
+func toolError(msg string) string {
+	return msg + noFallback
 }
 
 // QueryODataInput is the input schema for query-odata-service.
@@ -70,12 +82,12 @@ func (h *Handlers) HandleQueryODataService(
 	log.Info("Tool execution started", zap.String("query", input.Query))
 
 	if h.sessionErr != nil {
-		return nil, QueryODataOutput{Error: h.sessionErr.Error()}, nil
+		return nil, QueryODataOutput{Error: toolError(h.sessionErr.Error())}, nil
 	}
 	if len(h.services) == 0 || len(h.entityIndex) == 0 {
 		msg := "The OData client is not initialized. Please check server logs."
 		log.Warn(msg)
-		return nil, QueryODataOutput{Error: msg}, nil
+		return nil, QueryODataOutput{Error: toolError(msg)}, nil
 	}
 
 	entityNames := h.AllEntityNames()
@@ -98,7 +110,7 @@ func (h *Handlers) HandleQueryODataService(
 		)
 		log.Warn("Entity selection failed")
 		return nil, QueryODataOutput{
-			Error: msg,
+			Error: toolError(msg),
 		}, nil
 	}
 
@@ -114,14 +126,14 @@ func (h *Handlers) HandleQueryODataService(
 			targetEntity, strings.Join(candidates, ", "),
 		)
 		log.Warn("Ambiguous entity across services", zap.Strings("services", candidates))
-		return nil, QueryODataOutput{Error: msg}, nil
+		return nil, QueryODataOutput{Error: toolError(msg)}, nil
 	}
 
 	// --- Fetch data ---------------------------------------------------------
 	svc := h.ServiceForEntity(targetEntity)
 	if svc == nil {
 		return nil, QueryODataOutput{
-			Error: fmt.Sprintf("Could not find service for entity %q.", targetEntity),
+			Error: toolError(fmt.Sprintf("Could not find service for entity %q.", targetEntity)),
 		}, nil
 	}
 
@@ -131,7 +143,7 @@ func (h *Handlers) HandleQueryODataService(
 	records, errMsg := svc.Client.FetchEntitySet(fetchCtx, targetEntity, nil)
 	if errMsg != "" {
 		log.Warn("OData fetch error", zap.String("error", errMsg))
-		return nil, QueryODataOutput{Error: errMsg}, nil
+		return nil, QueryODataOutput{Error: toolError(errMsg)}, nil
 	}
 	if records == nil {
 		records = []any{}

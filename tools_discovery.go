@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -43,7 +44,8 @@ func registerDiscoveryTools(server *mcp.Server, h *Handlers) {
 		Name: "query-service",
 		Description: "Query OData data from one specific, explicitly chosen service. Use this instead of " +
 			"query-odata-service when an EntitySet name is ambiguous across multiple services, or when you " +
-			"already know which service (base_url, from list-available-services) you want.",
+			"already know which service (base_url, from list-available-services) you want. " +
+			"If it returns an error, tell the user that error; never substitute data from another source.",
 	}, h.HandleQueryService)
 }
 
@@ -59,7 +61,7 @@ func (h *Handlers) HandleListMetadataFiles(
 	_ struct{},
 ) (*mcp.CallToolResult, ListMetadataFilesOutput, error) {
 	if h.sessionErr != nil {
-		return nil, ListMetadataFilesOutput{}, h.sessionErr
+		return nil, ListMetadataFilesOutput{}, errors.New(toolError(h.sessionErr.Error()))
 	}
 	return nil, ListMetadataFilesOutput{Files: h.MetadataFileIDs()}, nil
 }
@@ -76,7 +78,7 @@ func (h *Handlers) HandleListAvailableServices(
 	_ struct{},
 ) (*mcp.CallToolResult, ListAvailableServicesOutput, error) {
 	if h.sessionErr != nil {
-		return nil, ListAvailableServicesOutput{}, h.sessionErr
+		return nil, ListAvailableServicesOutput{}, errors.New(toolError(h.sessionErr.Error()))
 	}
 	return nil, ListAvailableServicesOutput{Services: h.ServiceSummaries()}, nil
 }
@@ -102,14 +104,14 @@ func (h *Handlers) HandleQueryService(
 	log.Info("Tool execution started", zap.String("base_url", input.BaseURL), zap.String("query", input.Query))
 
 	if h.sessionErr != nil {
-		return nil, QueryODataOutput{Error: h.sessionErr.Error()}, nil
+		return nil, QueryODataOutput{Error: toolError(h.sessionErr.Error())}, nil
 	}
 
 	svc, ok := h.services[input.BaseURL]
 	if !ok {
 		msg := fmt.Sprintf("Unknown service base_url %q. Call list-available-services to see valid values.", input.BaseURL)
 		log.Warn(msg)
-		return nil, QueryODataOutput{Error: msg}, nil
+		return nil, QueryODataOutput{Error: toolError(msg)}, nil
 	}
 
 	entityNames := make([]string, 0, len(svc.Entities))
@@ -128,7 +130,7 @@ func (h *Handlers) HandleQueryService(
 			input.BaseURL, input.Query,
 		)
 		log.Warn("Entity selection failed")
-		return nil, QueryODataOutput{Error: msg}, nil
+		return nil, QueryODataOutput{Error: toolError(msg)}, nil
 	}
 
 	log.Info("Entity selected", zap.String("entity", targetEntity))
@@ -139,7 +141,7 @@ func (h *Handlers) HandleQueryService(
 	records, errMsg := svc.Client.FetchEntitySet(fetchCtx, targetEntity, nil)
 	if errMsg != "" {
 		log.Warn("OData fetch error", zap.String("error", errMsg))
-		return nil, QueryODataOutput{Error: errMsg}, nil
+		return nil, QueryODataOutput{Error: toolError(errMsg)}, nil
 	}
 	if records == nil {
 		records = []any{}
