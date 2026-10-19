@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/bluefunda/odata-mcp/compare/v0.2.0...v0.3.0) (2026-10-19)
+
+
+### Features
+
+* per-user connections — each user queries their own OData system ([#11](https://github.com/bluefunda/odata-mcp/issues/11)) ([52bc70c](https://github.com/bluefunda/odata-mcp/commit/52bc70cc9adc7ee8238614eb803557a9d84bf378))
+
 ## [0.2.0](https://github.com/bluefunda/odata-mcp/compare/v0.1.3...v0.2.0) (2026-08-21)
 
 
