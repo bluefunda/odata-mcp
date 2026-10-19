@@ -159,9 +159,9 @@ func publicOnlyDialer() *net.Dialer {
 var carrierGradeNAT = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}
 
 func isPublicIP(ip net.IP) bool {
-	return !(ip.IsLoopback() || ip.IsPrivate() || ip.IsUnspecified() ||
-		ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() ||
-		ip.IsInterfaceLocalMulticast() || carrierGradeNAT.Contains(ip))
+	return !ip.IsLoopback() && !ip.IsPrivate() && !ip.IsUnspecified() &&
+		!ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsMulticast() &&
+		!ip.IsInterfaceLocalMulticast() && !carrierGradeNAT.Contains(ip)
 }
 
 // userHTTPClient is the client for everything sent to a user's system: no
