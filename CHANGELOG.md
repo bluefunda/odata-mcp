@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/bluefunda/odata-mcp/compare/v0.3.0...v0.3.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* tool errors tell the model not to answer from other sources ([#13](https://github.com/bluefunda/odata-mcp/issues/13)) ([690bbe0](https://github.com/bluefunda/odata-mcp/commit/690bbe0a1e74eda00a88ca92db4ace02df2cbf73))
+
 ## [0.3.0](https://github.com/bluefunda/odata-mcp/compare/v0.2.0...v0.3.0) (2026-10-19)
 
 
