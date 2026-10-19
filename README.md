@@ -111,6 +111,15 @@ NATS_CREDS=/path/to/user.creds \
 odata-mcp
 ```
 
+### Per-user connections (BlueFunda AI)
+
+In SSE mode, each user can query their own OData system with their own credentials. Set `CAI_BFF_INTERNAL_URL`, and each new session that carries the caller's `X-BF-User-Id` (sent by cai-llm-router) fetches that user's connection from cai-bff's `/internal/odata/credentials` — host, optional SAP client, username, password and, optionally, the services to use. The session then reads each service's `$metadata` live from that host and runs every query there with that login. A loaded connection is reused for 10 minutes.
+
+- A service is a name (`API_BUSINESS_PARTNER` → `<host>/sap/opu/odata/sap/API_BUSINESS_PARTNER`), a path (`/sap/opu/odata4/...`), or a full URL on the same host. With none listed, up to 20 services are taken from the SAP Gateway catalog.
+- The password is only sent to the connected host: redirects aren't followed, and a metadata self-link to another host is ignored.
+- Loopback, private, link-local and other non-public addresses are refused, so a user can't point the server at its own network. `ODATA_ALLOW_PRIVATE_HOSTS=true` lifts this for local development.
+- A user with no connection, or one that can't be loaded, gets an error explaining what to fix — never answers from the shared metadata store. Sessions without `X-BF-User-Id` use the shared store as before; with per-user connections on, the shared store is optional.
+
 ## Modes
 
 Set via `ODATA_MODE` env var:
@@ -138,6 +147,10 @@ Set via `ODATA_MODE` env var:
 | `ODATA_USERNAME` | No | — | OData service username |
 | `ODATA_PASSWORD` | No | — | OData service password or bearer token |
 | `ODATA_AUTH_TYPE` | No | `basic` | `basic`, `bearer`, or omit for no auth |
+| **Per-user connections** | | | |
+| `CAI_BFF_INTERNAL_URL` | No | — | cai-bff base URL; enables per-user connections (SSE mode) |
+| `INTERNAL_SERVICE_SECRET` | if per-user | — | Sent as `X-Internal-Secret` to cai-bff's internal lookup |
+| `ODATA_ALLOW_PRIVATE_HOSTS` | No | `false` | Allow user connections to private/loopback addresses (local development only) |
 | **Transport** | | | |
 | `ODATA_MODE` | No | `stdio` | `stdio` or `sse` |
 | `ODATA_HTTP_PORT` | No | `8008` | HTTP port for SSE mode |
@@ -210,6 +223,7 @@ config.go          # Config struct, environment variable loading, Vault override
 handlers.go        # Handlers struct, Initialize(), store selection
 tools.go           # query-odata-service MCP tool
 tools_discovery.go # list-metadata-files, list-available-services, query-service tools
+user_connection.go # per-user connections: cai-bff lookup, live $metadata, per-session servers
 chart.go           # generate-chart MCP tool (Anthropic-driven chart spec)
 resources.go       # MCP resources (metadata.xml, metadata-info.json)
 metadata.go        # EDMX XML parser (token-stream, SAP namespace-aware)

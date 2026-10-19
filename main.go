@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -59,37 +60,47 @@ func main() {
 		zap.String("version", Version),
 	)
 
-	server := mcp.NewServer(
-		&mcp.Implementation{
-			Name:    "odata-mcp",
-			Version: Version,
-		},
-		nil,
-	)
-
 	handlers := NewHandlers(cfg)
 
 	// Initialise server state: NATS → S3 → parse metadata → build OData clients.
 	// A failure here is fatal; the MCP tool cannot function without metadata.
 	initCtx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	if err := handlers.Initialize(initCtx); err != nil {
-		cancel()
-		logger.L.Fatal("Server initialisation failed", zap.Error(err))
+		// With per-user connections each session brings its own metadata,
+		// so a shared store is optional.
+		if !errors.Is(err, errNoMetadataStore) || cfg.CAIBFFInternalURL == "" {
+			cancel()
+			logger.L.Fatal("Server initialisation failed", zap.Error(err))
+		}
+		logger.L.Info("No shared metadata store; serving per-user connections only")
 	}
 	cancel()
 
-	registerTools(server, handlers)
-	registerDiscoveryTools(server, handlers)
-	registerChartTool(server, handlers)
-	registerResources(server, handlers)
+	if cfg.CAIBFFInternalURL != "" {
+		logger.L.Info("Per-user OData connections enabled",
+			zap.String("bff", cfg.CAIBFFInternalURL),
+			zap.Bool("allow_private_hosts", cfg.AllowPrivateHosts),
+		)
+	}
+	sessions := &sessionServers{cfg: cfg, shared: handlers, cache: newUserCache()}
 
 	ctx := context.Background()
 	switch cfg.Mode {
 	case "sse":
-		runSSEMode(ctx, server, cfg)
+		runSSEMode(ctx, sessions, cfg)
 	default:
-		runStdioMode(ctx, server)
+		runStdioMode(ctx, buildServer(handlers))
 	}
+}
+
+// buildServer returns an MCP server with every tool and resource over h.
+func buildServer(h *Handlers) *mcp.Server {
+	server := mcp.NewServer(&mcp.Implementation{Name: "odata-mcp", Version: Version}, nil)
+	registerTools(server, h)
+	registerDiscoveryTools(server, h)
+	registerChartTool(server, h)
+	registerResources(server, h)
+	return server
 }
 
 func runStdioMode(ctx context.Context, server *mcp.Server) {
@@ -99,7 +110,7 @@ func runStdioMode(ctx context.Context, server *mcp.Server) {
 	}
 }
 
-func runSSEMode(ctx context.Context, server *mcp.Server, cfg *Config) {
+func runSSEMode(ctx context.Context, sessions *sessionServers, cfg *Config) {
 	logger.L.Info("Running in SSE/HTTP mode",
 		zap.String("host", cfg.HTTPHost),
 		zap.String("port", cfg.HTTPPort),
@@ -112,14 +123,14 @@ func runSSEMode(ctx context.Context, server *mcp.Server, cfg *Config) {
 			logger.L.Debug("SSE client connected",
 				zap.String("remote_addr", req.RemoteAddr),
 			)
-			return server
+			return sessions.serverFor(req)
 		}, nil)
 	} else {
 		handler = mcp.NewStreamableHTTPHandler(func(req *http.Request) *mcp.Server {
 			logger.L.Debug("HTTP client connected",
 				zap.String("remote_addr", req.RemoteAddr),
 			)
-			return server
+			return sessions.serverFor(req)
 		}, &mcp.StreamableHTTPOptions{
 			Stateless:      false,
 			JSONResponse:   false,

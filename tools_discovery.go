@@ -58,6 +58,9 @@ func (h *Handlers) HandleListMetadataFiles(
 	_ *mcp.CallToolRequest,
 	_ struct{},
 ) (*mcp.CallToolResult, ListMetadataFilesOutput, error) {
+	if h.sessionErr != nil {
+		return nil, ListMetadataFilesOutput{}, h.sessionErr
+	}
 	return nil, ListMetadataFilesOutput{Files: h.MetadataFileIDs()}, nil
 }
 
@@ -72,6 +75,9 @@ func (h *Handlers) HandleListAvailableServices(
 	_ *mcp.CallToolRequest,
 	_ struct{},
 ) (*mcp.CallToolResult, ListAvailableServicesOutput, error) {
+	if h.sessionErr != nil {
+		return nil, ListAvailableServicesOutput{}, h.sessionErr
+	}
 	return nil, ListAvailableServicesOutput{Services: h.ServiceSummaries()}, nil
 }
 
@@ -94,6 +100,10 @@ func (h *Handlers) HandleQueryService(
 	log := logger.WithTool(requestID, "query-service")
 
 	log.Info("Tool execution started", zap.String("base_url", input.BaseURL), zap.String("query", input.Query))
+
+	if h.sessionErr != nil {
+		return nil, QueryODataOutput{Error: h.sessionErr.Error()}, nil
+	}
 
 	svc, ok := h.services[input.BaseURL]
 	if !ok {

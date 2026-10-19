@@ -39,6 +39,9 @@ type ODataClient struct {
 	password string
 	authType string
 	http     *http.Client
+	// query is added to every request — sap-client for a per-user SAP
+	// connection; empty otherwise.
+	query url.Values
 }
 
 // newODataClient builds a client.  authType is "basic", "bearer", or "" for no auth.
@@ -112,6 +115,9 @@ func buildFilterString(filters map[string]any) string {
 // Python implementation's string-return approach.
 func (c *ODataClient) FetchEntitySet(ctx context.Context, entitySetName string, filters map[string]any) ([]any, string) {
 	params := url.Values{}
+	for k, vs := range c.query {
+		params[k] = vs
+	}
 	params.Set("$format", "json")
 	if f := buildFilterString(filters); f != "" {
 		params.Set("$filter", f)
