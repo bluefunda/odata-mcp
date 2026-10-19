@@ -207,3 +207,18 @@ func TestUserSessionErrors(t *testing.T) {
 		t.Fatal("metadata served to a failing session")
 	}
 }
+
+// A failing session's errors tell the model to relay them, not to answer
+// from somewhere else (a web search for sample data was seen on test).
+func TestUserSessionErrorsForbidFallback(t *testing.T) {
+	s := sessionsFor(fakeBFF(t, nil).URL, true)
+	for tool, args := range map[string]map[string]any{
+		"query-odata-service":     {"query": "customers"},
+		"list-available-services": nil,
+	} {
+		out := callTool(t, s, "not-connected", tool, args)
+		if !strings.Contains(out, "Don't answer with data from any other source") {
+			t.Errorf("%s: result = %s, want the no-fallback instruction", tool, out)
+		}
+	}
+}
