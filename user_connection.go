@@ -246,7 +246,7 @@ func (s *remoteStore) get(ctx context.Context, target, accept string, query url.
 		if msg := sapErrorMessage(snippet); msg != "" {
 			err = fmt.Errorf("%w: %s", err, msg)
 		}
-		return nil, err
+		return nil, &httpStatusError{status: resp.StatusCode, err: err}
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxMetadataBytes+1))
@@ -258,6 +258,16 @@ func (s *remoteStore) get(ctx context.Context, target, accept string, query url.
 	}
 	return body, nil
 }
+
+// httpStatusError keeps the HTTP status of a failed request to the user's
+// system, so callers can tell "this service isn't there" from "nothing works".
+type httpStatusError struct {
+	status int
+	err    error
+}
+
+func (e *httpStatusError) Error() string { return e.err.Error() }
+func (e *httpStatusError) Unwrap() error { return e.err }
 
 // statusError explains a non-200 answer from the user's system.
 func statusError(path string, status int) error {
@@ -324,7 +334,15 @@ func (s *remoteStore) discoverServices(ctx context.Context) ([]string, error) {
 		body, err = s.get(ctx, catalog, "application/json", url.Values{"$format": {"json"}})
 	}
 	if err != nil {
-		return nil, fmt.Errorf("listing services from the gateway catalog: %w — add the service names to the OData connection instead", err)
+		err = fmt.Errorf("listing services from the gateway catalog: %w", err)
+		// Naming the services helps only when the catalog itself is missing or closed
+		// to this user — not when the system rejects every request (e.g. a license
+		// or logon error), where the services would fail the same way.
+		var status *httpStatusError
+		if errors.As(err, &status) && (status.status == http.StatusNotFound || status.status == http.StatusForbidden) {
+			err = fmt.Errorf("%w — add the service names to the OData connection instead", err)
+		}
+		return nil, err
 	}
 
 	var raw any

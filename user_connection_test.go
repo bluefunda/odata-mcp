@@ -210,6 +210,37 @@ func TestUserSessionErrors(t *testing.T) {
 
 // A failing session's errors tell the model to relay them, not to answer
 // from somewhere else (a web search for sample data was seen on test).
+// The "add the service names" hint only follows a missing or forbidden
+// catalog, not a system that rejects everything.
+func TestCatalogHintOnlyWhenTheCatalogIsMissing(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		body   string
+		hint   bool
+	}{
+		{http.StatusNotFound, `{"error":{"message":{"value":"Resource not found"}}}`, true},
+		{http.StatusForbidden, ``, true},
+		{http.StatusInternalServerError, `{"error":{"message":{"value":"Logon not possible (error in license check)"}}}`, false},
+	} {
+		sys := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(tc.status)
+			_, _ = w.Write([]byte(tc.body))
+		}))
+		store := &remoteStore{conn: &UserConnection{Host: sys.URL, Username: "u", Password: "p"}, http: userHTTPClient(true)}
+		_, err := store.discoverServices(context.Background())
+		sys.Close()
+		if err == nil {
+			t.Fatalf("HTTP %d: no error", tc.status)
+		}
+		if got := strings.Contains(err.Error(), "add the service names"); got != tc.hint {
+			t.Errorf("HTTP %d: hint = %v, want %v (%v)", tc.status, got, tc.hint, err)
+		}
+		if tc.status == http.StatusInternalServerError && !strings.Contains(err.Error(), "license check") {
+			t.Errorf("SAP's message lost: %v", err)
+		}
+	}
+}
+
 func TestUserSessionErrorsForbidFallback(t *testing.T) {
 	s := sessionsFor(fakeBFF(t, nil).URL, true)
 	for tool, args := range map[string]map[string]any{
