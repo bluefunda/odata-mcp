@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/bluefunda/odata-mcp/compare/v0.3.1...v0.3.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* suggest naming services only when the catalog is missing ([#15](https://github.com/bluefunda/odata-mcp/issues/15)) ([0f3086c](https://github.com/bluefunda/odata-mcp/commit/0f3086c29c15aea428f69fb3deb08c16e1259977))
+
 ## [0.3.1](https://github.com/bluefunda/odata-mcp/compare/v0.3.0...v0.3.1) (2026-10-19)
 
 
