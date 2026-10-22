@@ -181,6 +181,10 @@ Set via `ODATA_MODE` env var:
 
 The `query-odata-service` description is built dynamically at startup and includes the full list of available EntitySets, so the AI assistant can route queries without additional context.
 
+**Choosing the EntitySet.** Both query tools take an optional `entity` — the EntitySet to query, as listed (`A_Customer`, `A_BusinessPartner`, `Customers`). Without it the entity is matched from the question: plain names and plurals (`customers` → `Customers`), then SAP names with their prefix and underscores ignored (`customers` → `A_Customer`, `business partners` → `A_BusinessPartner`), then the LLM fallback if `ANTHROPIC_API_KEY` is set. When nothing fits, the error lists the available entities so the assistant can retry with `entity` set.
+
+**Gateway catalog.** For a per-user connection without services, up to 20 services are loaded from the catalog — SAP's released `API_*` services first, then customer `Z*`/`Y*` services, then the rest.
+
 **Example queries:**
 - "list all countries"
 - "show me open purchase orders"
