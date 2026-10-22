@@ -33,7 +33,8 @@ import (
 func registerTools(server *mcp.Server, h *Handlers) {
 	desc := "Query OData services and return actual data. " +
 		"Always use this tool to get real data — never generate or fabricate responses.\n\n" +
-		"The tool automatically selects the correct service and entity from your natural language question. " +
+		"The tool selects the service and entity from your natural language question; when you know the " +
+		"EntitySet (see the list below or list-available-services, e.g. A_Customer for customers), set entity. " +
 		"If it returns an error, tell the user that error; never substitute data from another source."
 
 	if names := h.AllEntityNames(); len(names) > 0 {
@@ -59,7 +60,8 @@ func toolError(msg string) string {
 
 // QueryODataInput is the input schema for query-odata-service.
 type QueryODataInput struct {
-	Query string `json:"query" jsonschema:"Natural language question (e.g. 'get all countries', 'show invoices', 'currency of Germany')"`
+	Query  string `json:"query" jsonschema:"Natural language question (e.g. 'get all countries', 'show invoices', 'currency of Germany')"`
+	Entity string `json:"entity,omitempty" jsonschema:"Optional EntitySet to query, exactly as listed (e.g. A_Customer, A_BusinessPartner). Set it whenever you know which entity fits."`
 }
 
 // QueryODataOutput is the output schema for query-odata-service.
@@ -94,24 +96,11 @@ func (h *Handlers) HandleQueryODataService(
 	log.Info("Available entities", zap.Strings("entities", entityNames))
 
 	// --- Entity selection ---------------------------------------------------
-	// Step 1: direct substring / plural matching (mirrors Python logic exactly)
-	targetEntity := matchEntity(input.Query, entityNames)
-
-	// Step 2: LLM fallback when heuristic fails
+	// The entity the caller named, else the question's best match, else the LLM fallback.
+	targetEntity, selectErr := selectEntity(ctx, h.cfg, input.Query, input.Entity, entityNames, h.services)
 	if targetEntity == "" {
-		log.Info("Heuristic match failed, falling back to LLM")
-		targetEntity = entityFromLLM(ctx, h.cfg, input.Query, entityNames, h.services)
-	}
-
-	if targetEntity == "" {
-		msg := fmt.Sprintf(
-			"I could not determine which data entity to use for your query: %q. Please try rephrasing.",
-			input.Query,
-		)
-		log.Warn("Entity selection failed")
-		return nil, QueryODataOutput{
-			Error: toolError(msg),
-		}, nil
+		log.Warn("Entity selection failed", zap.String("entity", input.Entity))
+		return nil, QueryODataOutput{Error: toolError(selectErr)}, nil
 	}
 
 	log.Info("Entity selected", zap.String("entity", targetEntity))

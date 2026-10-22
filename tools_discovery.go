@@ -87,6 +87,7 @@ func (h *Handlers) HandleListAvailableServices(
 type QueryServiceInput struct {
 	BaseURL string `json:"base_url" jsonschema:"Base URL of the service to query, from list-available-services"`
 	Query   string `json:"query" jsonschema:"Natural language question, e.g. 'get all countries'"`
+	Entity  string `json:"entity,omitempty" jsonschema:"Optional EntitySet to query, exactly as list-available-services lists it (e.g. A_Customer). Set it whenever you know which entity fits."`
 }
 
 // HandleQueryService implements the query-service MCP tool: like
@@ -119,18 +120,11 @@ func (h *Handlers) HandleQueryService(
 		entityNames = append(entityNames, name)
 	}
 
-	targetEntity := matchEntity(input.Query, entityNames)
+	targetEntity, selectErr := selectEntity(ctx, h.cfg, input.Query, input.Entity, entityNames,
+		map[string]*ServiceInfo{input.BaseURL: svc})
 	if targetEntity == "" {
-		log.Info("Heuristic match failed, falling back to LLM")
-		targetEntity = entityFromLLM(ctx, h.cfg, input.Query, entityNames, map[string]*ServiceInfo{input.BaseURL: svc})
-	}
-	if targetEntity == "" {
-		msg := fmt.Sprintf(
-			"I could not determine which entity in service %q to use for your query: %q. Please try rephrasing.",
-			input.BaseURL, input.Query,
-		)
-		log.Warn("Entity selection failed")
-		return nil, QueryODataOutput{Error: toolError(msg)}, nil
+		log.Warn("Entity selection failed", zap.String("entity", input.Entity))
+		return nil, QueryODataOutput{Error: toolError(fmt.Sprintf("In service %s: %s", input.BaseURL, selectErr))}, nil
 	}
 
 	log.Info("Entity selected", zap.String("entity", targetEntity))

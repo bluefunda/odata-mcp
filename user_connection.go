@@ -25,6 +25,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -43,6 +44,8 @@ const (
 	// maxDiscoveredServices caps how many services a connection with no
 	// service list loads from the gateway catalog.
 	maxDiscoveredServices = 20
+	// catalogScanLimit is how many catalog entries are read to choose those from.
+	catalogScanLimit = 500
 	// maxMetadataBytes caps one $metadata document.
 	maxMetadataBytes = 20 << 20
 	// sessionLoadTimeout bounds fetching a user's metadata for a new session.
@@ -326,8 +329,8 @@ func (s *remoteStore) discoverServices(ctx context.Context) ([]string, error) {
 	catalog := strings.TrimRight(s.conn.Host, "/") + "/sap/opu/odata/IWFND/CATALOGSERVICE;v=2/ServiceCollection"
 	body, err := s.get(ctx, catalog, "application/json", url.Values{
 		"$format": {"json"},
-		"$select": {"ServiceUrl"},
-		"$top":    {fmt.Sprint(maxDiscoveredServices)},
+		"$select": {"ServiceUrl,TechnicalServiceName"},
+		"$top":    {fmt.Sprint(catalogScanLimit)},
 	})
 	if err != nil {
 		// Some gateways reject $select/$top on the catalog; retry plainly.
@@ -349,19 +352,48 @@ func (s *remoteStore) discoverServices(ctx context.Context) ([]string, error) {
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, fmt.Errorf("gateway catalog response is not JSON: %w", err)
 	}
-	var services []string
+	type entry struct {
+		path string
+		rank int
+	}
+	var entries []entry
 	for _, rec := range extractRecords(raw) {
 		m, _ := rec.(map[string]any)
 		u, err := url.Parse(configString(m, "ServiceUrl"))
 		if err != nil || u.Path == "" {
 			continue
 		}
-		services = append(services, u.Path)
+		entries = append(entries, entry{u.Path, catalogRank(configString(m, "TechnicalServiceName"), u.Path)})
+	}
+	// The catalog's own order is arbitrary (often technical services first): load SAP's released
+	// API_* services first, so "customers" finds API_BUSINESS_PARTNER's A_Customer.
+	sort.SliceStable(entries, func(i, j int) bool { return entries[i].rank < entries[j].rank })
+	var services []string
+	for _, e := range entries {
+		services = append(services, e.path)
 		if len(services) == maxDiscoveredServices {
 			break
 		}
 	}
 	return services, nil
+}
+
+// catalogRank orders gateway catalog entries for discovery: SAP's released APIs (API_*) first,
+// then customer services (Z*, Y*), then everything else (technical and framework services).
+func catalogRank(technicalName, path string) int {
+	name := strings.ToUpper(technicalName)
+	if name == "" {
+		name = strings.ToUpper(path[strings.LastIndex(strings.TrimRight(path, "/"), "/")+1:])
+	}
+	name = strings.TrimPrefix(name, "/")
+	switch {
+	case strings.HasPrefix(name, "API_"):
+		return 0
+	case strings.HasPrefix(name, "Z") || strings.HasPrefix(name, "Y"):
+		return 1
+	default:
+		return 2
+	}
 }
 
 // loadUserHandlers builds Handlers for one user's own connection.
