@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/bluefunda/odata-mcp/compare/v0.3.2...v0.4.0) (2026-10-22)
+
+
+### Features
+
+* pick the right entity on SAP systems — entity field, SAP-aware matching, catalog order ([#17](https://github.com/bluefunda/odata-mcp/issues/17)) ([f9b95c4](https://github.com/bluefunda/odata-mcp/commit/f9b95c4b1147fa7d2abd528ec97237af98ebef60))
+
 ## [0.3.2](https://github.com/bluefunda/odata-mcp/compare/v0.3.1...v0.3.2) (2026-10-21)
 
 
